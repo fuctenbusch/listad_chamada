@@ -1,0 +1,207 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class Student {
+  String name;
+  bool isPresent;
+
+  Student(this.name, this.isPresent);
+}
+
+class MyApp extends StatelessWidget {
+  final List<Student> students = [
+    Student('Aluno 1', true),
+    Student('Aluno 2', false),
+    Student('Aluno 3', true),
+    // Adicione mais alunos conforme necessário
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Lista de Presença',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: StudentListPage(students),
+    );
+  }
+}
+
+class StudentListPage extends StatefulWidget {
+  final List<Student> students;
+
+  StudentListPage(this.students);
+
+  @override
+  _StudentListPageState createState() => _StudentListPageState();
+}
+
+class _StudentListPageState extends State<StudentListPage> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Lista de Alunos'),
+      ),
+      body: ListView.builder(
+        itemCount: widget.students.length,
+        itemBuilder: (context, index) {
+          return ListTile(
+            title: Text(widget.students[index].name),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.edit),
+                  onPressed: () async {
+                    String newName = await showDialog(
+                      context: context,
+                      builder: (context) => EditStudentDialog(
+                        initialName: widget.students[index].name,
+                      ),
+                    );
+                    if (newName != null) {
+                      setState(() {
+                        widget.students[index].name = newName;
+                      });
+                    }
+                  },
+                ),
+                Checkbox(
+                  value: widget.students[index].isPresent,
+                  onChanged: (value) {
+                    setState(() {
+                      widget.students[index].isPresent = value!;
+                    });
+                  },
+                ),
+                IconButton(
+                  icon: Icon(Icons.delete),
+                  onPressed: () {
+                    setState(() {
+                      widget.students.removeAt(index);
+                    });
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PresentAbsentPage(widget.students),
+            ),
+          );
+        },
+        child: Icon(Icons.print),
+      ),
+    );
+  }
+}
+
+class EditStudentDialog extends StatefulWidget {
+  final String initialName;
+
+  EditStudentDialog({required this.initialName});
+
+  @override
+  _EditStudentDialogState createState() => _EditStudentDialogState();
+}
+
+class _EditStudentDialogState extends State<EditStudentDialog> {
+  late TextEditingController _nameController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Editar Aluno'),
+      content: TextField(
+        controller: _nameController,
+        decoration: InputDecoration(labelText: 'Nome do Aluno'),
+      ),
+      actions: [
+        TextButton(
+          child: Text('Cancelar'),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        TextButton(
+          child: Text('Salvar'),
+          onPressed: () {
+            Navigator.pop(context, _nameController.text);
+          },
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+}
+
+class PresentAbsentPage extends StatelessWidget {
+  final List<Student> students;
+
+  PresentAbsentPage(this.students);
+
+  List<Student> getPresentStudents() {
+    return students.where((student) => student.isPresent).toList();
+  }
+
+  List<Student> getAbsentStudents() {
+    return students.where((student) => !student.isPresent).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Lista de Presença/Ausência'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Alunos Presentes:',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            Column(
+              children: getPresentStudents()
+                  .map((student) => Text(student.name))
+                  .toList(),
+            ),
+            SizedBox(height: 20),
+            Text(
+              'Alunos Ausentes:',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            Column(
+              children: getAbsentStudents()
+                  .map((student) => Text(student.name))
+                  .toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
