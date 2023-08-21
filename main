@@ -12,7 +12,25 @@ class Student {
 }
 
 class MyApp extends StatelessWidget {
-  final List<Student> students = [
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Lista de Presença',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: StudentListPage(),
+    );
+  }
+}
+
+class StudentListPage extends StatefulWidget {
+  @override
+  _StudentListPageState createState() => _StudentListPageState();
+}
+
+class _StudentListPageState extends State<StudentListPage> {
+  List<Student> students = [
     Student('Aluno 1', true),
     Student('Aluno 2', false),
     Student('Aluno 3', true),
@@ -21,132 +39,216 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Lista de Presença',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: StudentListPage(students),
-    );
-  }
-}
-
-class StudentListPage extends StatefulWidget {
-  final List<Student> students;
-
-  StudentListPage(this.students);
-
-  @override
-  _StudentListPageState createState() => _StudentListPageState();
-}
-
-class _StudentListPageState extends State<StudentListPage> {
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Lista de Alunos'),
       ),
       body: ListView.builder(
-        itemCount: widget.students.length,
+        itemCount: students.length,
         itemBuilder: (context, index) {
           return ListTile(
-            title: Text(widget.students[index].name),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(Icons.edit),
-                  onPressed: () async {
-                    String newName = await showDialog(
-                      context: context,
-                      builder: (context) => EditStudentDialog(
-                        initialName: widget.students[index].name,
-                      ),
-                    );
-                    if (newName != null) {
-                      setState(() {
-                        widget.students[index].name = newName;
-                      });
-                    }
-                  },
-                ),
-                Checkbox(
-                  value: widget.students[index].isPresent,
-                  onChanged: (value) {
-                    setState(() {
-                      widget.students[index].isPresent = value!;
-                    });
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.delete),
-                  onPressed: () {
-                    setState(() {
-                      widget.students.removeAt(index);
-                    });
-                  },
-                ),
-              ],
+            title: Text(
+              students[index].name,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
+            trailing: Checkbox(
+              value: students[index].isPresent,
+              onChanged: (value) {
+                setState(() {
+                  students[index].isPresent = value!;
+                });
+              },
+            ),
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditStudentPage(
+                    student: students[index],
+                    onUpdate: (updatedStudent) {
+                      setState(() {
+                        students[index] = updatedStudent;
+                      });
+                    },
+                    onDelete: () {
+                      setState(() {
+                        students.removeAt(index);
+                        Navigator.pop(context);
+                      });
+                    },
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          Student newStudent = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => PresentAbsentPage(widget.students),
+              builder: (context) => AddStudentPage(),
             ),
           );
+          if (newStudent != null) {
+            setState(() {
+              students.add(newStudent);
+            });
+          }
         },
-        child: Icon(Icons.print),
+        child: Icon(Icons.add),
+      ),
+      bottomNavigationBar: BottomAppBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        PresentAbsentPage(students: students),
+                  ),
+                );
+              },
+              child: Text('Imprimir'),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class EditStudentDialog extends StatefulWidget {
-  final String initialName;
+class EditStudentPage extends StatefulWidget {
+  final Student student;
+  final Function(Student) onUpdate;
+  final VoidCallback onDelete;
 
-  EditStudentDialog({required this.initialName});
+  EditStudentPage({required this.student, required this.onUpdate, required this.onDelete});
 
   @override
-  _EditStudentDialogState createState() => _EditStudentDialogState();
+  _EditStudentPageState createState() => _EditStudentPageState();
 }
 
-class _EditStudentDialogState extends State<EditStudentDialog> {
+class _EditStudentPageState extends State<EditStudentPage> {
+  late TextEditingController _nameController;
+  late bool _isPresent;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.student.name);
+    _isPresent = widget.student.isPresent;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Editar Aluno'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(labelText: 'Nome do Aluno'),
+            ),
+            CheckboxListTile(
+              title: Text('Presente'),
+              value: _isPresent,
+              onChanged: (value) {
+                setState(() {
+                  _isPresent = value!;
+                });
+              },
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    Student updatedStudent = Student(_nameController.text, _isPresent);
+                    widget.onUpdate(updatedStudent);
+                    Navigator.pop(context);
+                  },
+                  child: Text('Salvar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    widget.onDelete();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    primary: Colors.red, // Change color to red
+                  ),
+                  child: Text('Excluir'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+}
+
+class AddStudentPage extends StatefulWidget {
+  @override
+  _AddStudentPageState createState() => _AddStudentPageState();
+}
+
+class _AddStudentPageState extends State<AddStudentPage> {
   late TextEditingController _nameController;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.initialName);
+    _nameController = TextEditingController();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Editar Aluno'),
-      content: TextField(
-        controller: _nameController,
-        decoration: InputDecoration(labelText: 'Nome do Aluno'),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Adicionar Aluno'),
       ),
-      actions: [
-        TextButton(
-          child: Text('Cancelar'),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(labelText: 'Nome do Aluno'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (_nameController.text.isNotEmpty) {
+                  Navigator.pop(
+                    context,
+                    Student(_nameController.text, false),
+                  );
+                }
+              },
+              child: Text('Adicionar'),
+            ),
+          ],
         ),
-        TextButton(
-          child: Text('Salvar'),
-          onPressed: () {
-            Navigator.pop(context, _nameController.text);
-          },
-        ),
-      ],
+      ),
     );
   }
 
@@ -160,7 +262,7 @@ class _EditStudentDialogState extends State<EditStudentDialog> {
 class PresentAbsentPage extends StatelessWidget {
   final List<Student> students;
 
-  PresentAbsentPage(this.students);
+  PresentAbsentPage({required this.students});
 
   List<Student> getPresentStudents() {
     return students.where((student) => student.isPresent).toList();
